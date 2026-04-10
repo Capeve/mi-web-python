@@ -6,6 +6,10 @@ import csv
 from io import StringIO
 from flask import Response
 import os
+from flask import request, jsonify
+
+
+
 
 app = Flask(__name__)
 
@@ -900,3 +904,28 @@ if __name__ == '__main__':
     print("🔒 Seguridad")
     print("="*60 + "\n")
     app.run(debug=True, port=5000)
+
+
+    # Esta es la ruta que "escucha" lo que envía el detector.py
+@app.route('/api/subir_placa', methods=['POST'])
+def api_subir_placa():
+    data = request.get_json()
+    placa = data.get('placa')
+    confianza = data.get('confianza')
+    
+    # Determinar estado
+    estado = "ACEPTADO" if placa in PLACAS_AUTORIZADAS else "DENEGADO"
+    fecha = datetime.now().strftime("%Y-%m-%d")
+    hora = datetime.now().strftime("%H:%M:%S")
+
+    # Guardar en la base de datos de RENDER
+    conn = sqlite3.connect('placas.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO registros (placa, placa_original, fecha, hora, estado, confianza)
+        VALUES (?, ?, ?, ?, ?, ?)
+    ''', (placa, placa, fecha, hora, estado, confianza))
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"status": "success"}), 201

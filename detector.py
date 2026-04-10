@@ -6,12 +6,16 @@ from PIL import Image, ImageTk
 from datetime import datetime
 import sqlite3
 import re
+import requests  # <--- Agregado para la conexión web
 
 # ===== CONFIGURACIÓN =====
 PLACAS_AUTORIZADAS = {
     "JNU540", "RIU532", "XYZ789", "JNU541", "JLY246",
     "VEG388", "WNU046", "BOE074", "FNU046", "MEG386"
 }
+
+# URL del Dashboard Web
+URL_API = "https://mi-web-python-tuho.onrender.com/api/subir_placa"
 
 # Inicializar EasyOCR
 reader = easyocr.Reader(['en'], gpu=False)
@@ -36,6 +40,13 @@ conn.commit()
 
 # ===== VARIABLES =====
 contador_total = 0
+
+# --- FUNCIÓN PARA ENVIAR DATOS A LA WEB ---
+def enviar_a_web(placa, confianza):
+    try:
+        requests.post(URL_API, json={"placa": placa, "confianza": float(confianza)}, timeout=1)
+    except:
+        pass # Ignorar si la web no está abierta para no trabar el programa
 
 def corregir_placa(texto_ocr):
     texto = texto_ocr.upper().strip()
@@ -165,6 +176,9 @@ def detectar_placas():
                 VALUES (?, ?, ?, ?, ?, ?)
             ''', (placa, original, fecha_actual, hora_actual, resultado, confianza))
             conn.commit()
+
+            # ===== ENVIAR A WEB (LÍNEA AGREGADA) =====
+            enviar_a_web(placa, confianza)
         
         label_contador.config(text=f"Vehículos: {contador_total}")
         text_result.insert(tk.END, f"\n📊 Total: {len(placas_detectadas)} detecciones\n", "blue")
